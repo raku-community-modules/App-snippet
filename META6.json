@@ -1,0 +1,25 @@
+{
+    "perl"        : "6.*",
+    "name"        : "App::snippet",
+    "version"     : "0.0.1",
+    "license"     : "MIT",
+    "description" : "run c/cpp or other language code snippet",
+    "depends"     : [ "Readline" ],
+    "tags": [
+        "c",
+        "cpp",
+        "snippet"
+    ],
+    "provides"    : {
+        "App::snippet"			: "lib/App/snippet.pm6",
+        "App::snippet::C"       : "lib/App/snippet/C.pm6",
+        "App::snippet::Cpp"     : "lib/App/snippet/Cpp.pm6"
+    },
+	"auth" : "github:araraloren",
+    "authors" : "Loren",
+    "source-url"  : "https://github.com/araraloren/perl6-app-snippet/archive/v0.0.6.zip",
+    "support" : {
+        "bugtracker" : "https://github.com.araraloren/perl6-terminal-table/issues",
+        "source" : "https://github.com/araraloren/perl6-terminal-table/tree/v0.0.6"
+    }
+}

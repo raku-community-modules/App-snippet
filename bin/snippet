@@ -1,0 +1,14 @@
+#!/usr/bin/env perl6
+
+use Pluggable;
+use Getopt::Advance;
+use App::snippet;
+
+my @plugins = [];
+
+for plugins("App", :plugins-namespace<snippet>) -> $plugin {
+    require ::($plugin.^name);
+    @plugins.push(::($plugin.^name)::Compiler.new);
+}
+
+getopt(|(@plugins>>.optionset), :autohv);
