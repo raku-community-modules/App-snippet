@@ -2,7 +2,7 @@
 use App::snippet;
 use Getopt::Advance;
 
-unit class App::snippet::Cpp is export;
+unit module App::snippet::Cpp;
 
 class App::snippet::Cpp::Target is Target::Common is export { }
 
@@ -13,6 +13,7 @@ class App::snippet::Cpp::Compiler does Compiler is export {
 
 	submethod TWEAK() {
 		$!optset = OptionSet.new;
+        $!optset.insert-cmd("cpp");
 		$!optset.append(
 			'h|help=b'    => 'print this help.',
 			' |version=b' => 'print program version.',
