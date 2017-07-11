@@ -11,8 +11,13 @@ class App::snippet::C::Compiler does Compiler is export {
 	has @!incode;
 	has @!infile;
 
+	sub main($optset, @args) {
+		say "files: {@args>>.value}";
+	}
+
 	submethod TWEAK() {
 		$!optset = OptionSet.new;
+		$!optset.insert-main(&main);
 		$!optset.insert-cmd("c");
 		$!optset.append(
 			'h|help=b'    => 'print this help.',
@@ -29,6 +34,23 @@ class App::snippet::C::Compiler does Compiler is export {
 			'L|=a' => 'add library search path.',
 			'i|=a' => 'append include file.',
 			'I|=a' => 'add include search path.',
+			'D|=a' => 'pass -D<D> to compiler, i.e. add macro define.',
+		);
+		$!optset.append(
+			:radio,
+			'astyle=s' 		=> 'set astyle style',
+			'clang-format=s'=> 'set clang-format style',
+			'uncrustify=s'  => 'set uncrustify style',
+		);
+		$!optset.push(
+			'|main=s',
+			'chang main header.',
+			value => 'int main(void)',
+		);
+		$!optset.push(
+			'|end=s',
+			'change user input code terminator.',
+			value => '@@CODEEND',
 		);
 		$!optset.push(
 			'f|flag=a',
@@ -36,25 +58,35 @@ class App::snippet::C::Compiler does Compiler is export {
 			value => <Wall Wextra>
 		);
 		$!optset.push(
-			'c=s',
+			'|std=s',
 			'set c standard version.',
-			:11value
+			:value<c11>
+		);
+		$!optset.push(
+			'c|compiler=s',
+			'set compiler.',
+			value => 'gcc'
+		);
+		$!optset.push(
+			'e=a',
+			'add code to generator.'
+		);
+		$!optset.push(
+			'r=b',
+			'ignore -e, allow user input code from stdin.',
+		);
+		$!optset.push(
+			'p|=b',
+			'print code read from -e or -r.'
+		);
+		$!optset.push(
+			'|debug=b',
+			'open debug mode.'
 		);
 	}
 
-	multi method compile(Str $code) of Target {
-		App::snippet::C::Target.new;
-	}
-
-	multi method compile(Str @codes) of Target {
-		App::snippet::C::Target.new;
-	}
-
-	multi method compile(IO::Path $dir) of Target {
-		App::snippet::C::Target.new;
-	}
-
-	multi method compile(IO::Path @files) of Target {
+	method compile() of Target {
+		self.generate-code();
 		App::snippet::C::Target.new;
 	}
 
@@ -64,5 +96,9 @@ class App::snippet::C::Compiler does Compiler is export {
 
 	method style() {
 		"gnu";
+	}
+
+	method generate-code() {
+		say $!optset<e>;
 	}
 }

@@ -26,23 +26,18 @@ role Target {
 			}
 		}
 	}
-	
+
 	method run() { ... }
 	method say() { ... }
 	method clean() { ... }
 }
 
 role Compiler {
-	proto method compile(|) { * }
-	
-	multi method compile(Str $code)       of Target { ... }
-	multi method compile(Str @codes)      of Target { ... }
-	multi method compile(IO::Path $dir)   of Target { ... }
-	multi method compile(IO::Path @files) of Target { ... }
+	method compile() of Target { ... }
 
 	method optionset() is rw { ... }
-	
-	method style() of Str { ... }	
+
+	method style() of Str { ... }
 }
 
 class Target::Common is export does Target {
@@ -88,5 +83,3 @@ sub prompt-code(Str $prompt, Str $end, Str $readline-prompt = "") of Array is ex
 	}
 	@code;
 }
-
-

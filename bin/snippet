@@ -10,4 +10,12 @@ for plugins("App", :plugins-namespace<snippet>) -> $plugin {
     @plugins.push($plugin.WHO<Compiler>.new);
 }
 
-getopt(|(@plugins>>.optionset), :autohv);
+my ($optset, @) = getopt(|(@plugins>>.optionset), :autohv);
+
+for @plugins -> $plugin {
+    if $optset.VAR.WHERE == $plugin.optionset.VAR.WHERE {
+        my $target = $plugin.compile();
+
+        $target.process();
+    }
+}

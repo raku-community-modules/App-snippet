@@ -20,19 +20,7 @@ class App::snippet::Cpp::Compiler does Compiler is export {
 		);
 	}
 
-	multi method compile(Str $code) of Target {
-		App::snippet::Cpp::Target.new;
-	}
-
-	multi method compile(Str @codes) of Target {
-		App::snippet::Cpp::Target.new;
-	}
-
-	multi method compile(IO::Path $dir) of Target {
-		App::snippet::Cpp::Target.new;
-	}
-
-	multi method compile(IO::Path @files) of Target {
+	method compile() of Target {
 		App::snippet::Cpp::Target.new;
 	}
 
