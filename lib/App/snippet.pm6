@@ -72,7 +72,7 @@ sub prompt-code(Str $prompt, Str $end, Str $readline-prompt = "") of Array is ex
 	my @code = [];
 	my $readline = Readline.new;
 
-	say $prompt;
+	print $prompt;
 	$readline.using-history;
 	loop {
 		if $readline.readline($readline-prompt) -> $code {
@@ -82,4 +82,31 @@ sub prompt-code(Str $prompt, Str $end, Str $readline-prompt = "") of Array is ex
 		}
 	}
 	@code;
+}
+
+multi sub do_compile($compile, @args) of IO::Path {
+	try {
+		run $compile, @args;
+		CATCH {
+			default {
+				note "Compile failed: $compile {@args}";
+				...
+			}
+		}
+	}
+}
+
+multi sub do_compile($compile, @args, @incode) of IO::Path {
+	try {
+		my $proc = run $compile, @args, :in;
+
+		$proc.in.say($_) for @incode;
+		$proc.in.close();
+		CATCH {
+			default {
+				note "Compile failed: $compile {@args}";
+				...
+			}
+		}
+	}
 }
