@@ -1,5 +1,6 @@
 
 use Readline;
+use File::Which;
 
 enum TargetType (
 	:EXECUTABLE(1),
@@ -33,11 +34,120 @@ role Target {
 }
 
 role Compiler {
-	method compile() of Target { ... }
+    has $.compiler;
+    has @.args;
+    has $.lang is required;
 
-	method optionset() is rw { ... }
+    submethod TWEAK(:$compiler, :$lang) {
+        # set gcc as default compiler
+        without $compiler {
+            $!compiler = which('gcc');
+        }
+    }
 
-	method style() of Str { ... }
+    my class Result {
+        has $.output;
+        has $.stdout;
+        has $.stderr;
+    }
+
+    sub fetchMessage($proc, $output, :$out, :$err) {
+        if $*PERL.version ~~ v6.c {
+            my $stdout = $out ?? $proc.out.slurp-rest() !! "";
+            my $stderr = $err ?? $proc.err.slurp-rest() !! "";
+
+            $proc.out.close() if $out;
+            $proc.err.close() if $err;
+            return Result.new(
+                output => $output,
+                stdout => $stdout,
+                stderr => $stderr,
+            );
+        } else {
+            return Result.new(
+                output => $output,
+                stdout => $out ?? $proc.out.slurp(:close) !! "",
+                stderr => $err ?? $proc.err.slurp(:close) !! "",
+            );
+        }
+    }
+
+    method compileCode(@codes, $output, :$out, :$err) {
+        my @realargs = @!args;
+
+        @realargs.append("-o", $output, "-x{$!lang}", "-");
+        try {
+            my $proc = run $!compiler, @realargs, :in, :$out, :$err;
+
+            $proc.in.say($_) for @codes;
+            $proc.in.close();
+            return fetchMessage($proc, $output, :$out, :$err);
+            CATCH {
+                default {
+                    note "Catch exception when run \{ $!compiler {@realargs}\}";
+                    ...
+                }
+            }
+        }
+    }
+
+    method compileFile($file, $output, :$out, :$err) {
+        my @realargs = @!args;
+
+        @realargs.append("-o", $output, $file);
+        try {
+            my $proc = run $!compiler, @realargs, :$out, :$err;
+
+            return fetchMessage($proc, $output, :$out, :$err);
+            CATCH {
+                default {
+                    note "Catch exception when run \{ $!compiler {@realargs}\}";
+                    ...
+                }
+            }
+        }
+    }
+
+    method setOptimizeLevel(int $level) {
+        self.addArg("-O{$level}");
+    }
+
+    method setStandard(Str $std) {
+        self.addArg("-std={$std}");
+    }
+
+	multi method addMacro($macro) {
+        self.addArg("-D{$macro}");
+    }
+
+    multi method addMacro($macro, $value) {
+        self.addArg("-D{$macro}={$value}");
+    }
+
+	method addIncludePath($path) {
+        self.addArg("-I{$path}");
+    }
+
+	method addLibraryPath($path) {
+        self.addArg("-L{$path}");
+    }
+
+	method linkLibrary($libname) {
+        self.addArg("-l{$libname}");
+    }
+
+    method supportLanguages() {
+        <c c++>;
+    }
+
+    multi method addArg(Str $option) {
+        @!args.push($option);
+    }
+
+    multi method addArg(Str $option, Str $arg) {
+        @!args.push($option);
+        @!args.push($arg);
+    }
 }
 
 class Target::Common is export does Target {
