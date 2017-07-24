@@ -6,8 +6,8 @@ use App::snippet;
 
 my @plugins = [];
 
-for plugins("App", :plugins-namespace<snippet>) -> $plugin {
-    @plugins.push($plugin.WHO<Compiler>.new);
+for plugins("App::snippet", :plugins-namespace<Compiler>) -> $plugin {
+    say $plugin;
 }
 
 my ($optset, @) = getopt(|(@plugins>>.optionset), :autohv);
