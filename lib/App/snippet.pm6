@@ -7,6 +7,7 @@ enum TargetType (
 	:TEXT(2),
 );
 
+enum Language < C CXX >;
 
 #####################################################
 ## role Target and Compiler
@@ -33,44 +34,61 @@ role Target {
 	method clean() { ... }
 }
 
+class Target::Common is export does Target {
+	has $.target;
+	has @.args;
+
+	method run() {
+		given $*KERNEL {
+			when /win32/ {
+				run('start', $!target, @!args);
+			}
+
+			default {
+				run($!target, @!args);
+			}
+		}
+	}
+
+	method say() {
+		print($!target.IO.slurp);
+	}
+
+	method clean() {
+		unlink $!target;
+	}
+}
+
+class Result {
+	has $.output;
+	has $.stdout;
+	has $.stderr;
+}
+
+class Support {
+	has $.lang;
+	has $.bin;
+}
+
 role Compiler {
     has $.compiler;
     has @.args;
     has $.lang is required;
 
-    submethod TWEAK(:$compiler, :$lang) {
-        # set gcc as default compiler
-        without $compiler {
-            $!compiler = which('gcc');
-        }
-    }
+	method name() { ... }
 
-    my class Result {
-        has $.output;
-        has $.stdout;
-        has $.stderr;
-    }
+	method supports() { ... }
 
-    sub fetchMessage($proc, $output, :$out, :$err) {
-        if $*PERL.version ~~ v6.c {
-            my $stdout = $out ?? $proc.out.slurp-rest() !! "";
-            my $stderr = $err ?? $proc.err.slurp-rest() !! "";
+	method autoDetecte() {
+		without $!compiler {
+			$!compiler = which(self.supports().grep({ .lang eq $!lang }));
+		}
+		return defined($!compiler);
+	}
 
-            $proc.out.close() if $out;
-            $proc.err.close() if $err;
-            return Result.new(
-                output => $output,
-                stdout => $stdout,
-                stderr => $stderr,
-            );
-        } else {
-            return Result.new(
-                output => $output,
-                stdout => $out ?? $proc.out.slurp(:close) !! "",
-                stderr => $err ?? $proc.err.slurp(:close) !! "",
-            );
-        }
-    }
+	method setCompiler($compiler) {
+		$!compiler = $compiler;
+	}
 
     method compileCode(@codes, $output, :$out, :$err) {
         my @realargs = @!args;
@@ -81,7 +99,7 @@ role Compiler {
 
             $proc.in.say($_) for @codes;
             $proc.in.close();
-            return fetchMessage($proc, $output, :$out, :$err);
+            return &fetchMessage($proc, $output, :$out, :$err);
             CATCH {
                 default {
                     note "Catch exception when run \{ $!compiler {@realargs}\}";
@@ -98,7 +116,7 @@ role Compiler {
         try {
             my $proc = run $!compiler, @realargs, :$out, :$err;
 
-            return fetchMessage($proc, $output, :$out, :$err);
+            return &fetchMessage($proc, $output, :$out, :$err);
             CATCH {
                 default {
                     note "Catch exception when run \{ $!compiler {@realargs}\}";
@@ -136,10 +154,6 @@ role Compiler {
         self.addArg("-l{$libname}");
     }
 
-    method supportLanguages() {
-        <c c++>;
-    }
-
     multi method addArg(Str $option) {
         @!args.push($option);
     }
@@ -150,29 +164,12 @@ role Compiler {
     }
 }
 
-class Target::Common is export does Target {
-	has $.target;
-	has @.args;
+role Interface {
+	method languages() { ... }
 
-	method run() {
-		given $*KERNEL {
-			when /win32/ {
-				run('start', $!target, @!args);
-			}
+	method compilers() { ... }
 
-			default {
-				run($!target, @!args);
-			}
-		}
-	}
-
-	method say() {
-		print($!target.IO.slurp);
-	}
-
-	method clean() {
-		unlink $!target;
-	}
+	method optionset() is rw { ... }
 }
 
 #####################################################
@@ -218,5 +215,26 @@ multi sub do_compile($compile, @args, @incode) of IO::Path {
 				...
 			}
 		}
+	}
+}
+
+sub fetchMessage($proc, $output, :$out, :$err) {
+	if $*PERL.version ~~ v6.c {
+		my $stdout = $out ?? $proc.out.slurp-rest() !! "";
+		my $stderr = $err ?? $proc.err.slurp-rest() !! "";
+
+		$proc.out.close() if $out;
+		$proc.err.close() if $err;
+		return Result.new(
+			output => $output,
+			stdout => $stdout,
+			stderr => $stderr,
+		);
+	} else {
+		return Result.new(
+			output => $output,
+			stdout => $out ?? $proc.out.slurp(:close) !! "",
+			stderr => $err ?? $proc.err.slurp(:close) !! "",
+		);
 	}
 }

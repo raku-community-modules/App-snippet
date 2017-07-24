@@ -4,6 +4,7 @@ use Getopt::Advance;
 
 unit module App::snippet::C;
 
+#`(
 class App::snippet::C::Target is Target::Common is export { }
 
 class App::snippet::C::Compiler does Compiler is export {
@@ -31,7 +32,7 @@ class App::snippet::C::Compiler does Compiler is export {
 	method generate-code() {
 		my $prompt = qq:to/EOF/;
 Please input your code, make sure your code correct.
-Enter $!optset<end> input.	
+Enter $!optset<end> input.
 EOF
 		if $!optset<r> {
 			@!incode = &prompt-code($prompt, $!optset<end>);
@@ -43,7 +44,7 @@ EOF
 
 sub main($optset, @args) {
 	@args.shift;
-	
+
 }
 
 sub init_c_optionset() {
@@ -116,3 +117,4 @@ sub init_c_optionset() {
 		);
 		$optset;
 }
+)
