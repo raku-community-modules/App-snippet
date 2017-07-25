@@ -7,7 +7,10 @@ enum TargetType (
 	:TEXT(2),
 );
 
-enum Language < C CXX >;
+enum Language(
+	:C("c"),
+	:CXX("cpp"),
+);
 
 #####################################################
 ## role Target and Compiler
@@ -73,7 +76,7 @@ class Support {
 role Compiler {
     has $.compiler;
     has @.args;
-    has $.lang is required;
+    has $.lang is rw;
 
 	method name() { ... }
 
@@ -165,11 +168,16 @@ role Compiler {
 }
 
 role Interface {
-	method languages() { ... }
+	has $.optset;
+	has @.compiler;
 
-	method compilers() { ... }
+	method language() { ... }
 
 	method optionset() is rw { ... }
+
+	method setCompiler(@compiler) {
+		@!compiler = @compiler;
+	}
 }
 
 #####################################################

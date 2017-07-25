@@ -4,18 +4,16 @@ use Pluggable;
 use Getopt::Advance;
 use App::snippet;
 
-my @plugins = [];
+my (@compilers, @interfaces) = ([], []);
 
 for plugins("App::snippet", :plugins-namespace<Compiler>) -> $plugin {
-    say $plugin;
+    @compilers.push($plugin.new());
 }
 
-my ($optset, @) = getopt(|(@plugins>>.optionset), :autohv);
-
-for @plugins -> $plugin {
-    if $optset.VAR.WHERE == $plugin.optionset.VAR.WHERE {
-        my $target = $plugin.compile();
-
-        $target.process();
-    }
+for plugins("App::snippet", :plugins-namespace<Interface>) -> $plugin {
+    @interfaces.push($plugin.new(
+        compiler => @compilers.grep( { $plugin.language (elem) .supports()>>.lang })
+    ));
 }
+
+getopt(|(@interfaces>>.optionset), :autohv);
