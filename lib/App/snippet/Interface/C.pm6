@@ -1,13 +1,32 @@
 
 use App::snippet;
-
-sub main($!optset, @args) {
-	@args.shift;
-    say @args;
-}
+use Getopt::Advance;
 
 class App::snippet::Interface::C does Interface is export {
     submethod TWEAK() {
+        sub main($optset, @args) {
+            if +@args == 1 {
+                my @incode = [];
+
+                @incode.append(&incodeFromOV($optset, '#include <', '>', 'i'));
+                @incode.append(&incodeFromOV($optset, '#', '', 'pp'));
+                if $optset<r> {
+                    my $prompt = qq:to/EOF/;
+Please input your code, make sure your code correct.
+Enter $!optset<end> input.
+EOF
+                    @incode.append(&prompt-input-code($prompt, $optset<end>));
+                } else {
+                    @incode.push($optset<main>);
+                    @incode.push('{');
+                    @incode.push($_.Str) for $optset<e>;
+                    @incode.push('return 0;');
+                    @incode.push('}');
+                }
+            } else {
+
+            }
+        }
         $!optset = OptionSet.new;
         $!optset.insert-main(&main);
     	$!optset.insert-cmd("c");
@@ -27,6 +46,7 @@ class App::snippet::Interface::C does Interface is export {
     		'i|=a' => 'append include file.',
     		'I|=a' => 'add include search path.',
     		'D|=a' => 'pass -D<D> to compiler, i.e. add macro define.',
+            'pp=a' => 'add preprocess command to the code.',
     	);
     	$!optset.append(
     		:radio,
@@ -47,8 +67,11 @@ class App::snippet::Interface::C does Interface is export {
     	$!optset.push(
     		'f|flag=a',
     		'pass -<flags> to compiler.',
-    		value => <Wall Wextra>
     	);
+        $!optset.push(
+            'w|=b',
+            'pass -Wall -Wextra -Werror to compiler.',
+        );
     	$!optset.push(
     		'|std=s',
     		'set c standard version.',
@@ -57,7 +80,7 @@ class App::snippet::Interface::C does Interface is export {
     	$!optset.push(
     		'c|compiler=s',
     		'set compiler.',
-    		value => @!compiler[0].name // ??
+    		value => @!compiler[0].name
     	);
     	$!optset.push(
     		'e=a',
