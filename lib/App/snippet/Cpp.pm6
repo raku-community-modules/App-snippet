@@ -6,6 +6,7 @@ unit module App::snippet::Cpp;
 
 class App::snippet::Cpp::Target is Target::Common is export { }
 
+#`(
 class App::snippet::Cpp::Compiler does Compiler is export {
 	has $!optset;
 	has @!incode;
@@ -32,3 +33,4 @@ class App::snippet::Cpp::Compiler does Compiler is export {
 		"gnu";
 	}
 }
+)
