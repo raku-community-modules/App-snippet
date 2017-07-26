@@ -4,7 +4,7 @@ use Pluggable;
 use Getopt::Advance;
 use App::snippet;
 
-my (@compilers, @interfaces) = ([], []);
+my (@compilers, @interfaces);
 
 for plugins("App::snippet", :plugins-namespace<Compiler>) -> $plugin {
     @compilers.push($plugin.new());
