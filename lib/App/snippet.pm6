@@ -183,7 +183,7 @@ role Interface {
 #####################################################
 ## helper sub
 #####################################################
-sub prompt-code(Str $prompt, Str $end, Str $readline-prompt = "") of Array is export {
+sub prompt-input-code(Str $prompt, Str $end, Str $readline-prompt = "") of Array is export {
 	my @code = [];
 	my $readline = Readline.new;
 
@@ -197,6 +197,15 @@ sub prompt-code(Str $prompt, Str $end, Str $readline-prompt = "") of Array is ex
 		}
 	}
 	@code;
+}
+
+sub incodeFromOV($optionset, Str $prefix, Str $postfix, $opt) is export {
+	if $optionset.get($opt).has-value {
+		my @value = $optionset{$opt};
+		@value.reverse.map({ $prefix ~ $_ ~ $postfix });
+	} else {
+		();
+	}
 }
 
 multi sub do_compile($compile, @args) of IO::Path {
