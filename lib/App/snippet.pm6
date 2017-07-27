@@ -169,14 +169,14 @@ role Compiler {
 
 role Interface {
 	has $.optset;
-	has @.compiler;
+	has @.compilers;
 
-	method language() { ... }
+	method lang() { ... }
 
 	method optionset() is rw { ... }
 
-	method setCompiler(@compiler) {
-		@!compiler = @compiler;
+	method setCompiler(@compilers) {
+		@!compilers = @compilers;
 	}
 }
 
@@ -203,6 +203,15 @@ sub incodeFromOV($optionset, Str $prefix, Str $postfix, $opt) is export {
 	if $optionset.get($opt).has-value {
 		my @value = $optionset{$opt};
 		@value.reverse.map({ $prefix ~ $_ ~ $postfix });
+	} else {
+		();
+	}
+}
+
+sub argsFromOV($optionset, Str $prefix, $opt) is export {
+	if $optionset.get($opt).has-value {
+		my @value = $optionset{$opt};
+		@value.map({ $prefix ~ $_ });
 	} else {
 		();
 	}

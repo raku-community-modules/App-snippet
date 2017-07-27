@@ -12,7 +12,8 @@ for plugins("App::snippet", :plugins-namespace<Compiler>) -> $plugin {
 
 for plugins("App::snippet", :plugins-namespace<Interface>) -> $plugin {
     @interfaces.push($plugin.new(
-        compiler => @compilers.grep( { $plugin.language (elem) .supports()>>.lang })
+        compilers => @compilers.grep( { $plugin.lang (elem) .supports()>>.lang }),
+        lang => $plugin.lang,
     ));
 }
 
