@@ -80,7 +80,7 @@ EOF
     	$!optset.push(
     		'c|compiler=s',
     		'set compiler.',
-    		value => @!compiler[0].name
+    		value => @!compilers[0].name
     	);
     	$!optset.push(
     		'e=a',
@@ -101,7 +101,7 @@ EOF
     	$!optset;
     }
 
-    method language() {
+    method lang() {
         Language::CXX
     }
 

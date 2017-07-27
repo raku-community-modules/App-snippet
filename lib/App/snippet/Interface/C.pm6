@@ -1,10 +1,25 @@
 
+use PathTools;
 use App::snippet;
 use Getopt::Advance;
 
 class App::snippet::Interface::C does Interface is export {
     submethod TWEAK() {
         sub main($optset, @args) {
+            my $compiler = @!compilers.first({ .name eq $optset<c> });
+
+            # generate compile arguments
+            @compile-args.append(&argsFromOV($optset, '-', 'f'));
+            @compile-args.append(&argsFromOV($optset, '--', 'flag'));
+            @compile-args.append(&argsFromOV($optset, '-I', 'I'));
+            @compile-args.append(&argsFromOV($optset, '-D', 'D'));
+            @compile-args.append(&argsFromOV($optset, '-L', 'L'));
+            @compile-args.append(&argsFromOV($optset, '-l', 'l'));
+            @compile-args.push("-std={$optset<std>}");
+            @compile-args.append('-Wall', '-Wextra', '-Werror') if $optset<w>;
+            @compile-args.push($optset<E> ?? '-E' !! '-S') if $optset<E> || $optset<S>;
+
+            # generate code or file
             if +@args == 1 {
                 my @incode = [];
 
@@ -23,6 +38,12 @@ EOF
                     @incode.push('return 0;');
                     @incode.push('}');
                 }
+                $compiler.compileCode(
+                    @incode,
+                    $optset<o> // tmppath('snippet-c'),
+                    :out($optset<quite>),
+                    :err($optset<quite>),
+                );
             } else {
 
             }
@@ -54,6 +75,10 @@ EOF
     		'clang-format=s'=> 'set clang-format style',
     		'uncrustify=s'  => 'set uncrustify style',
     	);
+        $!optset.append(
+            'f=a'    => 'pass -<f> to compiler.',
+            'flag=a' => 'pass --<flag> to compiler.'
+        );
     	$!optset.push(
     		'|main=s',
     		'chang main header.',
@@ -63,10 +88,6 @@ EOF
     		'|end=s',
     		'change user input code terminator.',
     		value => '@@CODEEND',
-    	);
-    	$!optset.push(
-    		'f|flag=a',
-    		'pass -<flags> to compiler.',
     	);
         $!optset.push(
             'w|=b',
@@ -79,29 +100,27 @@ EOF
     	);
     	$!optset.push(
     		'c|compiler=s',
-    		'set compiler.',
-    		value => @!compiler[0].name
+    		"set compiler, availname compiler are {@!compilers>>.name}.",
+    		value => 'gcc',
     	);
-    	$!optset.push(
-    		'e=a',
-    		'add code to generator.'
+    	$!optset.append(
+    		'e=a' => 'add code to generator.',
+            'r=b' => 'ignore -e, allow user input code from stdin.',
+            'o=s' => 'set output file, or will be auto generate',
     	);
-    	$!optset.push(
-    		'r=b',
-    		'ignore -e, allow user input code from stdin.',
+    	$!optset.append(
+    		'p|=b' => 'print code read from -e or -r.',
+            '|debug=b' => 'open debug mode.',
+            'temp=b' => 'don\'t remove output file.',
     	);
-    	$!optset.push(
-    		'p|=b',
-    		'print code read from -e or -r.'
-    	);
-    	$!optset.push(
-    		'|debug=b',
-    		'open debug mode.'
-    	);
+        $!optset.push(
+            'quite=b/',
+            'disable quite mode, open stdout and stderr.',
+        );
     	$!optset;
     }
 
-    method language() {
+    method lang() {
         Language::C;
     }
 
