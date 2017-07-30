@@ -2,23 +2,26 @@
 use PathTools;
 use App::snippet;
 use Getopt::Advance;
+use App::snippet::Common;
 
 class App::snippet::Interface::C does Interface is export {
     submethod TWEAK() {
         sub main($optset, @args) {
-            my $compiler = @!compilers.first({ .name eq $optset<c> });
+            my $CLASS = @!compilers.first({ .name eq $optset<c> });
+            my $compiler = $CLASS.new(lang => self.lang());
+            my $target;
+            my $to-execute = !$optset<E> && !$optset<S>;
 
             # generate compile arguments
-            @compile-args.append(&argsFromOV($optset, '-', 'f'));
-            @compile-args.append(&argsFromOV($optset, '--', 'flag'));
-            @compile-args.append(&argsFromOV($optset, '-I', 'I'));
-            @compile-args.append(&argsFromOV($optset, '-D', 'D'));
-            @compile-args.append(&argsFromOV($optset, '-L', 'L'));
-            @compile-args.append(&argsFromOV($optset, '-l', 'l'));
-            @compile-args.push("-std={$optset<std>}");
-            @compile-args.append('-Wall', '-Wextra', '-Werror') if $optset<w>;
-            @compile-args.push($optset<E> ?? '-E' !! '-S') if $optset<E> || $optset<S>;
-
+            $compiler.autoDetecte(); # ??user defined compiler!!
+            $compiler.addArg(&argsFromOV($optset, '-', 'f'));
+            $compiler.addArg(&argsFromOV($optset, '--', 'flag'));
+            $compiler.addIncludePath(&argsFromOV($optset, '-I', 'I'));
+            $compiler.addMacro(&argsFromOV($optset, '-D', 'D'));
+            $compiler.addLibraryPath(&argsFromOV($optset, '-L', 'L'));
+            $compiler.linkLibrary(&argsFromOV($optset, '-l', 'l'));
+            $compiler.setStandard($optset<std>);
+            $compiler.addArg(< -Wall -Wextra -Werror >) if $optset<w>;
             # generate code or file
             if +@args == 1 {
                 my @incode = [];
@@ -38,85 +41,60 @@ EOF
                     @incode.push('return 0;');
                     @incode.push('}');
                 }
-                $compiler.compileCode(
+                my $ext = $to-execute ?? 'o' !!( $optset<E> ?? 'i' !! 's');
+                unless $to-execute {
+                    $compiler.setMode($optset<E> ?? CompileMode::PREPROCESS !! CompileMode::ASSEMBLE);
+                }
+                $target = $compiler.compileCode(
                     @incode,
-                    $optset<o> // tmppath('snippet-c'),
-                    :out($optset<quite>),
-                    :err($optset<quite>),
+                    $optset<o> // &sourceNameToExecutable(tmppath()),
+                    :out(!$optset<quite>),
+                    :err(!$optset<quite>),
                 );
             } else {
+                @args.shift;
+                $to-execute = True;
+                my @objects = [];
+                my $tmpdir = mkdirs(tmppath());
 
+                for @args>>.value -> $file {
+                    my $fh = $file.IO;
+                    if $fh ~~ :e {
+                        $compiler.setMode(CompileMode::COMPILE);
+                        my $t = $compiler.compileFile(
+                            $file,
+                            $tmpdir ~ '/' ~ &sourceNameToObject($fh.basename),
+                            :out(!$optset<quite>),
+                            :err(!$optset<quite>),
+                        );
+                        print($t.stdout) if $t.stdout ne "";
+                        print($t.stderr) if $t.stderr ne "";
+                        @objects.push($t.target.target);
+                        $compiler.setMode(CompileMode::LINK);
+                        $target = $compiler.linkObject(
+                            @objects,
+                            $optset<o> // &sourceNameToExecutable(tmppath()),
+                            :out(!$optset<quite>),
+                            :err(!$optset<quite>)
+                        );
+                    } else {
+                        fail "Not a file: $file";
+                    }
+                }
+                END { rm(:r, $tmpdir) if $tmpdir; }
             }
+            $target.target.action = $to-execute ?? TargetAction::RUN !! TargetAction::SAY;
+            $target.target.chmod if $to-execute;
+            $target.target.setArgs($optset<args>);
+            $target.target.cleanLater() if $optset<temp>;
+            print($target.stdout) if $target.stdout ne "";
+            print($target.stderr) if $target.stderr ne "";
+            return $target;
         }
-        $!optset = OptionSet.new;
+        $!optset = &commonOptionSet('c11', @!compilers>>.name, 'gcc');
         $!optset.insert-main(&main);
     	$!optset.insert-cmd("c");
-    	$!optset.append(
-    		'h|help=b'    => 'print this help.',
-    		'v|version=b' => 'print program version.',
-    	);
-    	$!optset.append(
-    		:radio,
-    		'S=b' => 'pass -S to compiler.',
-    		'E=b' => 'pass -E to compiler.',
-    	);
-    	$!optset.append(
-    		:multi,
-    		'l|=a' => 'pass -l<l> to compiler, i.e. link library.',
-    		'L|=a' => 'add library search path.',
-    		'i|=a' => 'append include file.',
-    		'I|=a' => 'add include search path.',
-    		'D|=a' => 'pass -D<D> to compiler, i.e. add macro define.',
-            'pp=a' => 'add preprocess command to the code.',
-    	);
-    	$!optset.append(
-    		:radio,
-    		'astyle=s' 		=> 'set astyle style',
-    		'clang-format=s'=> 'set clang-format style',
-    		'uncrustify=s'  => 'set uncrustify style',
-    	);
-        $!optset.append(
-            'f=a'    => 'pass -<f> to compiler.',
-            'flag=a' => 'pass --<flag> to compiler.'
-        );
-    	$!optset.push(
-    		'|main=s',
-    		'chang main header.',
-    		value => 'int main(void)',
-    	);
-    	$!optset.push(
-    		'|end=s',
-    		'change user input code terminator.',
-    		value => '@@CODEEND',
-    	);
-        $!optset.push(
-            'w|=b',
-            'pass -Wall -Wextra -Werror to compiler.',
-        );
-    	$!optset.push(
-    		'|std=s',
-    		'set c standard version.',
-    		:value<c11>
-    	);
-    	$!optset.push(
-    		'c|compiler=s',
-    		"set compiler, availname compiler are {@!compilers>>.name}.",
-    		value => 'gcc',
-    	);
-    	$!optset.append(
-    		'e=a' => 'add code to generator.',
-            'r=b' => 'ignore -e, allow user input code from stdin.',
-            'o=s' => 'set output file, or will be auto generate',
-    	);
-    	$!optset.append(
-    		'p|=b' => 'print code read from -e or -r.',
-            '|debug=b' => 'open debug mode.',
-            'temp=b' => 'don\'t remove output file.',
-    	);
-        $!optset.push(
-            'quite=b/',
-            'disable quite mode, open stdout and stderr.',
-        );
+        $!optset.set-value('i', 'stdio.h');
     	$!optset;
     }
 
