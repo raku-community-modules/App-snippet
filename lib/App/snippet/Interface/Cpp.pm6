@@ -1,7 +1,6 @@
 
 use PathTools;
 use App::snippet;
-use Getopt::Advance;
 use App::snippet::Common;
 
 class App::snippet::Interface::Cpp does Interface is export {
