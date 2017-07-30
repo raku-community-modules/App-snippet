@@ -7,7 +7,9 @@
     "depends"     : [
         "Readline",
         "PathTools",
-        "Getopt::Advance"
+        "Getopt::Advance",
+        "File::Which",
+        "Pluggable"
     ],
     "tags": [
         "c",
