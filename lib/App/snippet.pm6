@@ -2,9 +2,9 @@
 use Readline;
 use File::Which;
 
-enum TargetType (
-	:EXECUTABLE(1),
-	:TEXT(2),
+enum TargetAction (
+	:RUN(1),
+	:SAY(2),
 );
 
 enum Language(
@@ -12,58 +12,59 @@ enum Language(
 	:CXX("cpp"),
 );
 
+enum CompileMode (
+	:COMPILE("-c"),
+	:PREPROCESS("-E"),
+	:ASSEMBLE("-S"),
+	:LINK(""),
+);
+
 #####################################################
 ## role Target and Compiler
 #####################################################
 role Target {
-	has TargetType $.type;
+	has TargetAction $.action is rw;
+	has $.target;
+	has @.args = [];
+	has $.want-clean;
 
-	method process() {
-		given $!type {
-			when TargetType::EXECUTABLE {
-				self.run();
-			}
-			when TargetType::TEXT {
-				self.say();
-			}
-			default {
-				die "Not recongnize target type!";
-			}
-		}
+	method setArgs(@args) {
+		@!args = @args;
 	}
 
-	method run() { ... }
-	method say() { ... }
-	method clean() { ... }
-}
-
-class Target::Common is export does Target {
-	has $.target;
-	has @.args;
+	method chmod() {
+		chmod 0o755, $!target;
+	}
 
 	method run() {
+		my $proc;
 		given $*KERNEL {
 			when /win32/ {
-				run('start', $!target, @!args);
+				$proc = run('start', $!target, @!args);
 			}
 
 			default {
-				run($!target, @!args);
+				$proc = run($!target, @!args);
 			}
 		}
+		$proc;
 	}
 
 	method say() {
 		print($!target.IO.slurp);
 	}
 
+	method cleanLater() {
+		$!want-clean = True;
+	}
+
 	method clean() {
-		unlink $!target;
+		unlink $!target unless $!want-clean;
 	}
 }
 
 class Result {
-	has $.output;
+	has $.target;
 	has $.stdout;
 	has $.stderr;
 }
@@ -76,15 +77,28 @@ class Support {
 role Compiler {
     has $.compiler;
     has @.args;
-    has $.lang is rw;
+    has $.lang;
+	has @.library;
+	has $.mode = CompileMode::LINK;
 
 	method name() { ... }
 
 	method supports() { ... }
 
+	method setLanguage($lang) {
+		if self.supports().grep({.lang eq $lang}) {
+			$!lang = $lang;
+		}
+		fail "\{{self.supports()}\} Not support this language: $lang";
+	}
+
+	method setMode(CompileMode $mode) {
+		$!mode = $mode;
+	}
+
 	method autoDetecte() {
 		without $!compiler {
-			$!compiler = which(self.supports().grep({ .lang eq $!lang }));
+			$!compiler = which(self.supports().first({ .lang eq $!lang }).bin);
 		}
 		return defined($!compiler);
 	}
@@ -96,6 +110,8 @@ role Compiler {
     method compileCode(@codes, $output, :$out, :$err) {
         my @realargs = @!args;
 
+		{ @realargs.push("-l{$_}") for @!library  } if $!mode eq CompileMode::LINK;
+		@realargs.push($!mode.Str) if $!mode.Str ne "";
         @realargs.append("-o", $output, "-x{$!lang}", "-");
         try {
             my $proc = run $!compiler, @realargs, :in, :$out, :$err;
@@ -105,8 +121,7 @@ role Compiler {
             return &fetchMessage($proc, $output, :$out, :$err);
             CATCH {
                 default {
-                    note "Catch exception when run \{ $!compiler {@realargs}\}";
-                    ...
+					.resume;
                 }
             }
         }
@@ -115,6 +130,7 @@ role Compiler {
     method compileFile($file, $output, :$out, :$err) {
         my @realargs = @!args;
 
+		@realargs.push($!mode.Str) if $!mode.Str ne "";
         @realargs.append("-o", $output, $file);
         try {
             my $proc = run $!compiler, @realargs, :$out, :$err;
@@ -122,12 +138,30 @@ role Compiler {
             return &fetchMessage($proc, $output, :$out, :$err);
             CATCH {
                 default {
-                    note "Catch exception when run \{ $!compiler {@realargs}\}";
-                    ...
+                    .resume;
                 }
             }
         }
     }
+
+	method linkObject(@objects, $output, :$out, :$err) {
+		my @realargs = [];
+
+		@realargs.push("-l{$_}") for @!library;
+		@realargs.push($!mode.Str) if $!mode.Str ne "";
+		@realargs.append(@objects);
+		@realargs.append("-o", $output);
+        try {
+            my $proc = run $!compiler, @realargs, :$out, :$err;
+
+            return &fetchMessage($proc, $output, :$out, :$err);
+            CATCH {
+                default {
+                    .resume;
+                }
+            }
+        }
+	}
 
     method setOptimizeLevel(int $level) {
         self.addArg("-O{$level}");
@@ -141,30 +175,57 @@ role Compiler {
         self.addArg("-D{$macro}");
     }
 
+	multi method addMacro(@macro) {
+        self.addMacro($_) for @macro;
+    }
+
     multi method addMacro($macro, $value) {
         self.addArg("-D{$macro}={$value}");
     }
 
-	method addIncludePath($path) {
+	multi method addMacro(*%args) {
+		self.addMacro(.key, .value) for %args;
+	}
+
+	multi method addIncludePath($path) {
         self.addArg("-I{$path}");
     }
 
-	method addLibraryPath($path) {
+	multi method addIncludePath(@path) {
+		self.addIncludePath($_) for @path;
+	}
+
+	multi method addLibraryPath($path) {
         self.addArg("-L{$path}");
     }
 
-	method linkLibrary($libname) {
-        self.addArg("-l{$libname}");
+	multi method addLibraryPath(@path) {
+		self.addLibraryPath($_) for @path;
+	}
+
+	multi method linkLibrary($libname) {
+        @!library.push($libname);
     }
+
+	multi method linkLibrary(@libname) {
+		self.linkLibrary($_) for @libname;
+	}
 
     multi method addArg(Str $option) {
         @!args.push($option);
     }
 
+	multi method addArg(@option) {
+		self.addArg($_) for @option;
+	}
+
     multi method addArg(Str $option, Str $arg) {
-        @!args.push($option);
-        @!args.push($arg);
+        @!args.append($option, $arg);
     }
+
+	multi method addArg(*%args) {
+	 	self.addArg(.key, .value) for %args;
+	}
 }
 
 role Interface {
@@ -217,6 +278,23 @@ sub argsFromOV($optionset, Str $prefix, $opt) is export {
 	}
 }
 
+sub sourceNameToObject($filename, $ext='o') is export {
+	if $filename.rindex('.') -> $index {
+		return "{$filename.substr(0, $index)}.{$ext}";
+	} else {
+		return "{$filename}.{$ext}";
+	}
+}
+
+sub sourceNameToExecutable($filename) is export {
+	my $ext = ($*KERNEL ~~ /win32/ ?? '.exe' !! "");
+	if $filename.rindex('.') -> $index {
+		return "{$filename.substr(0, $index)}{$ext}";
+	} else {
+		return "{$filename}{$ext}";
+	}
+}
+
 multi sub do_compile($compile, @args) of IO::Path {
 	try {
 		run $compile, @args;
@@ -252,13 +330,13 @@ sub fetchMessage($proc, $output, :$out, :$err) {
 		$proc.out.close() if $out;
 		$proc.err.close() if $err;
 		return Result.new(
-			output => $output,
+			target => Target.new(target => $output),
 			stdout => $stdout,
 			stderr => $stderr,
 		);
 	} else {
 		return Result.new(
-			output => $output,
+			target => Target.new(target => $output),
 			stdout => $out ?? $proc.out.slurp(:close) !! "",
 			stderr => $err ?? $proc.err.slurp(:close) !! "",
 		);
