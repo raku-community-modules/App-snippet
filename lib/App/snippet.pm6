@@ -9,7 +9,7 @@ enum TargetAction (
 
 enum Language(
 	:C("c"),
-	:CXX("cpp"),
+	:CXX("c++"),
 );
 
 enum CompileMode (
