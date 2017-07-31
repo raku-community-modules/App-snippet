@@ -38,7 +38,7 @@ EOF
                 } else {
                     @incode.push($optset<main>);
                     @incode.push('{');
-                    @incode.push($_.Str) for $optset<e>;
+                    @incode.push($_.Str) for $optset<e> // [];
                     @incode.push('return 0;');
                     @incode.push('}');
                 }
