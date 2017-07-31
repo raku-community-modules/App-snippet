@@ -50,6 +50,7 @@ EOF
                     :out(!$optset<quite>),
                     :err(!$optset<quite>),
                 );
+                &displayCode(@incode) if $optset<p>;
             } else {
                 @args.shift;
                 $to-execute = True;
@@ -84,8 +85,8 @@ EOF
             }
             $target.target.action = $to-execute ?? TargetAction::RUN !! TargetAction::SAY;
             $target.target.chmod if $to-execute;
-            $target.target.setArgs($optset<args>);
-            $target.target.cleanLater() if $optset<temp>;
+            $target.target.setArgs($optset<args> // []);
+            $target.target.cleanLater() if $optset<clean>;
             print($target.stdout) if $target.stdout ne "";
             print($target.stderr) if $target.stderr ne "";
             return $target;
