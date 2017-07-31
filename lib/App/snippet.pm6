@@ -262,7 +262,7 @@ sub prompt-input-code(Str $prompt, Str $end, Str $readline-prompt = "") of Array
 
 sub incodeFromOV($optionset, Str $prefix, Str $postfix, $opt) is export {
 	if $optionset.get($opt).has-value {
-		my @value = $optionset{$opt};
+		my @value := $optionset{$opt};
 		@value.reverse.map({ $prefix ~ $_ ~ $postfix });
 	} else {
 		();
@@ -271,7 +271,7 @@ sub incodeFromOV($optionset, Str $prefix, Str $postfix, $opt) is export {
 
 sub argsFromOV($optionset, Str $prefix, $opt) is export {
 	if $optionset.get($opt).has-value {
-		my @value = $optionset{$opt};
+		my @value := $optionset{$opt};
 		@value.map({ $prefix ~ $_ });
 	} else {
 		();
@@ -293,6 +293,12 @@ sub sourceNameToExecutable($filename) is export {
 	} else {
 		return "{$filename}{$ext}";
 	}
+}
+
+sub displayCode(@code, $ch = '-', $length = 50) is export {
+	say $ch x $length;
+	.say for @code;
+	say $ch x $length;
 }
 
 multi sub do_compile($compile, @args) of IO::Path {
