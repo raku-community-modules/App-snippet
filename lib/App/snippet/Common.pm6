@@ -52,7 +52,7 @@ sub commonOptionSet(Str $std, @compiler, $default-compiler) is export {
     );
     $optset.push(
         'c|compiler=s',
-        "set compiler, availname compiler are {@compiler}.",
+        "set compiler, available compiler are < {@compiler} >.",
         value => $default-compiler,
     );
     $optset.append(
@@ -63,7 +63,7 @@ sub commonOptionSet(Str $std, @compiler, $default-compiler) is export {
     $optset.append(
         'p|=b' => 'print code read from -e or -r.',
         '|debug=b' => 'open debug mode.',
-        'temp=b' => 'don\'t remove output file.',
+        'clean=b/' => 'don\'t remove output file.',
     );
     $optset.push(
         'quite=b',
