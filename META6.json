@@ -11,6 +11,9 @@
         "File::Which",
         "Pluggable"
     ],
+    "test-depends": [
+        "Test::META"
+    ],
     "tags": [
         "c",
         "cpp",
