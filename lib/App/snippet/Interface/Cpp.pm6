@@ -69,28 +69,24 @@ EOF
                             :out(!$optset<quite>),
                             :err(!$optset<quite>),
                         );
-                        print($t.stdout) if $t.stdout ne "";
-                        print($t.stderr) if $t.stderr ne "";
-                        @objects.push($t.target.target);
-                        $compiler.setMode(CompileMode::LINK);
-                        $target = $compiler.linkObject(
-                            @objects,
-                            $optset<o> // &sourceNameToExecutable(tmppath()),
-                            :out(!$optset<quite>),
-                            :err(!$optset<quite>)
-                        );
+                        @objects.push($t.target);
                     } else {
                         fail "Not a file: $file";
                     }
                 }
+				$compiler.setMode(CompileMode::LINK);
+                $target = $compiler.linkObject(
+                    @objects,
+                    $optset<o> // &sourceNameToExecutable(tmppath()),
+                    :out(!$optset<quite>),
+                    :err(!$optset<quite>)
+                );
                 END { rm(:r, $tmpdir) if $tmpdir; }
             }
-            $target.target.action = $to-execute ?? TargetAction::RUN !! TargetAction::SAY;
-            $target.target.chmod if $to-execute;
-            $target.target.setArgs($optset<args> // []);
-            $target.target.cleanLater() if $optset<clean>;
-            print($target.stdout) if $target.stdout ne "";
-            print($target.stderr) if $target.stderr ne "";
+            $target.action = $to-execute ?? TargetAction::RUN !! TargetAction::SAY;
+            $target.chmod if $to-execute;
+            $target.setArgs($optset<args> // []);
+            $target.cleanLater() if $optset<clean>;
             return $target;
         }
         $!optset = &commonOptionSet('c++11', @!compilers>>.name, 'gcc');
