@@ -2,17 +2,19 @@
 use Readline;
 use File::Which;
 
-enum TargetAction (
+unit module App::snippet;
+
+enum TargetAction is export (
 	:RUN(1),
 	:SAY(2),
 );
 
-enum Language(
+enum Language is export (
 	:C("c"),
 	:CXX("c++"),
 );
 
-enum CompileMode (
+enum CompileMode is export (
 	:COMPILE("-c"),
 	:PREPROCESS("-E"),
 	:ASSEMBLE("-S"),
