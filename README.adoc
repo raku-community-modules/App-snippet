@@ -108,10 +108,6 @@ image:https://ci.appveyor.com/api/projects/status/jxi78155dvv8jrqx/branch/master
 
 GPL
 
-== TODO
-
-- format print code.
-
 == Author
 
 araraloren (blackcatoverwall#gmail.com)
