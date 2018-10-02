@@ -20,7 +20,7 @@ my $ret = getopt(|(@interfaces>>.optionset), :autohv, :!strict);
 my %ret = $ret.return-value;
 
 for %ret.values -> $target {
-    if $target.hasTarget {
+    if $target.?hasTarget {
         given $target.action() {
             when TargetAction::RUN {
                 $target.run();
